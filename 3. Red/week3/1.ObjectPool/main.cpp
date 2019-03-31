@@ -50,8 +50,9 @@ public:
 			delete x;
 		}
 		while( !released.empty() ) {
-			delete released.front();
+			T* x = released.front();
 			released.pop();
+            delete x;
 		}
 	}
 
