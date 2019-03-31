@@ -4,7 +4,7 @@
 #include <utility>
 
 #include<map>
-#include<deque>
+#include<queue>
 #include<set>
 
 using namespace std;
@@ -26,11 +26,12 @@ public:
     {}
 
     void Book(int64_t time, string hotel, int client_id, int rooms) {
-    	last_time = time;
     	reserve r( time, client_id, rooms );
-    	orders[hotel].push_back(r);
-        room_count[hotel] += rooms;
-        cl_count[hotel][client_id]++;
+    	orders[hotel].push(r);
+        
+        last_time = time;
+        u_clients[hotel].insert(client_id);
+        rooms_count[hotel] += rooms;
     }
 
     double Clients(string hotel)
@@ -39,8 +40,7 @@ public:
             return 0;
     	}
         Update(hotel);
-
-        return cl_count[hotel].size();
+        return u_clients[hotel].size();
     }
     int64_t Rooms(string hotel)
     {
@@ -48,34 +48,28 @@ public:
             return 0;
     	}
         Update(hotel);
-
-        return room_count[hotel];
+        return rooms_count[hotel];
     }
 
 private:
-    void Update( string hotel ) {
-        deque<reserve>& tmp = orders[hotel];        
+    void Update(string hotel) {
+        queue<reserve>& tmp = orders[hotel];
         while( !tmp.empty() && tmp.front().time <= last_time-86400 ) {
-            room_count[hotel] -= tmp.front().rooms_c;
-            int& x = cl_count[hotel][tmp.front().cl_id];
-            x--;
-            if (x==0) {
-                cl_count[hotel].erase(tmp.front().cl_id);
-            }
-
-            tmp.pop_front();
+            u_clients[hotel].erase(tmp.front().cl_id);
+            rooms_count[hotel] -= tmp.front().rooms_c;
+            tmp.pop();
         }
     }
     
     int64_t last_time;
-    map<string, deque<reserve>> orders;
-    map<string, int> room_count;
-    map<string, map<int, int>> cl_count;
+    map<string, queue<reserve>> orders;
+    map<string, set<int>> u_clients;
+    map<string, uint64_t> rooms_count;
 };
 
 int main() {
-    //ios::sync_with_stdio(false);
-    //cin.tie(nullptr);
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
 
     BookingManager manager;
 
