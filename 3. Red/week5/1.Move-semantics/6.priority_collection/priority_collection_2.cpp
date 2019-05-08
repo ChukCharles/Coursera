@@ -7,84 +7,108 @@
 #include <utility>
 #include <vector>
 
+#include <map>
+#include <deque>
+
 using namespace std;
 
 template <typename T>
 class PriorityCollection {
 public:
-  using Id = /* тип, используемый для идентификаторов */;
+    using Id = int;
 
-  // Добавить объект с нулевым приоритетом
-  // с помощью перемещения и вернуть его идентификатор
-  Id Add(T object);
+    PriorityCollection() : curr_max_id(0) {
+    }
 
-  // Добавить все элементы диапазона [range_begin, range_end)
-  // с помощью перемещения, записав выданные им идентификаторы
-  // в диапазон [ids_begin, ...)
-  template <typename ObjInputIt, typename IdOutputIt>
-  void Add(ObjInputIt range_begin, ObjInputIt range_end,
-           IdOutputIt ids_begin);
+    // Добавить объект с нулевым приоритетом
+    // с помощью перемещения и вернуть его идентификатор
 
-  // Определить, принадлежит ли идентификатор какому-либо
-  // хранящемуся в контейнере объекту
-  bool IsValid(Id id) const;
+    Id Add(T object) {
+        objects.push_back(move(object));
+        priorities[objects.back()] = 0;
+    }
 
-  // Получить объект по идентификатору
-  const T& Get(Id id) const;
+    // Добавить все элементы диапазона [range_begin, range_end)
+    // с помощью перемещения, записав выданные им идентификаторы
+    // в диапазон [ids_begin, ...)
+    template <typename ObjInputIt, typename IdOutputIt>
+    void Add(ObjInputIt range_begin, ObjInputIt range_end,
+            IdOutputIt ids_begin) {
+        int before_size = objects.size();
+        copy(make_move_iterator(range_begin), make_move_iterator(range_end),
+             back_inserter(objects));
+        for( auto it = objects.begin()+before_size; it != objects.end(); ++it) {
+            priorities[it] = 0;
+            *ids_begin = it;
+            ids_begin++;
+        }
+    }
 
-  // Увеличить приоритет объекта на 1
-  void Promote(Id id);
+    // Определить, принадлежит ли идентификатор какому-либо
+    // хранящемуся в контейнере объекту
+    bool IsValid(Id id) const {
+        return priorities.count(id);
+    }
 
-  // Получить объект с максимальным приоритетом и его приоритет
-  pair<const T&, int> GetMax() const;
+    // Получить объект по идентификатору
+    const T& Get(Id id) const {
+        priorities.erase(id);
+        return move(*id);
+    }
 
-  // Аналогично GetMax, но удаляет элемент из контейнера
-  pair<T, int> PopMax();
+    // Увеличить приоритет объекта на 1
+    void Promote(Id id);
+
+    // Получить объект с максимальным приоритетом и его приоритет
+    pair<const T&, int> GetMax() const;
+
+    // Аналогично GetMax, но удаляет элемент из контейнера
+    pair<T, int> PopMax();
 
 private:
-  // Приватные поля и методы
+    deque<T> objects;
+    map<deque<T>::iterator, int> priorities;
 };
-
 
 class StringNonCopyable : public string {
 public:
-  using string::string;  // Позволяет использовать конструкторы строки
-  StringNonCopyable(const StringNonCopyable&) = delete;
-  StringNonCopyable(StringNonCopyable&&) = default;
-  StringNonCopyable& operator=(const StringNonCopyable&) = delete;
-  StringNonCopyable& operator=(StringNonCopyable&&) = default;
+    using string::string; // Позволяет использовать конструкторы строки
+    StringNonCopyable(const StringNonCopyable&) = delete;
+    StringNonCopyable(StringNonCopyable&&) = default;
+    StringNonCopyable& operator=(const StringNonCopyable&) = delete;
+    StringNonCopyable& operator=(StringNonCopyable&&) = default;
 };
 
 void TestNoCopy() {
-  PriorityCollection<StringNonCopyable> strings;
-  const auto white_id = strings.Add("white");
-  const auto yellow_id = strings.Add("yellow");
-  const auto red_id = strings.Add("red");
+    PriorityCollection<StringNonCopyable> strings;
+    const auto white_id = strings.Add("white");
+    const auto yellow_id = strings.Add("yellow");
+    const auto red_id = strings.Add("red");
 
-  strings.Promote(yellow_id);
-  for (int i = 0; i < 2; ++i) {
-    strings.Promote(red_id);
-  }
-  strings.Promote(yellow_id);
-  {
-    const auto item = strings.PopMax();
-    ASSERT_EQUAL(item.first, "red");
-    ASSERT_EQUAL(item.second, 2);
-  }
-  {
-    const auto item = strings.PopMax();
-    ASSERT_EQUAL(item.first, "yellow");
-    ASSERT_EQUAL(item.second, 2);
-  }
-  {
-    const auto item = strings.PopMax();
-    ASSERT_EQUAL(item.first, "white");
-    ASSERT_EQUAL(item.second, 0);
-  }
+    strings.Promote(yellow_id);
+    for (int i = 0; i < 2; ++i) {
+        strings.Promote(red_id);
+    }
+    strings.Promote(yellow_id);
+    {
+        const auto item = strings.PopMax();
+        ASSERT_EQUAL(item.first, "red");
+        ASSERT_EQUAL(item.second, 2);
+    }
+    {
+        const auto item = strings.PopMax();
+        ASSERT_EQUAL(item.first, "yellow");
+        ASSERT_EQUAL(item.second, 2);
+    }
+    {
+        const auto item = strings.PopMax();
+        ASSERT_EQUAL(item.first, "white");
+        ASSERT_EQUAL(item.second, 0);
+    }
 }
 
 int main() {
-  TestRunner tr;
-  RUN_TEST(tr, TestNoCopy);
-  return 0;
+    TestRunner tr;
+    RUN_TEST(tr, TestNoCopy);
+    return 0;
 }
