@@ -15,17 +15,21 @@ using namespace std;
 template <typename T>
 class PriorityCollection {
 public:
-    using Id = int;
+    using Id = typename deque<T>::iterator;
 
-    PriorityCollection() : curr_max_id(0) {
-    }
+    PriorityCollection() : max_pr(0) {}
 
     // Добавить объект с нулевым приоритетом
     // с помощью перемещения и вернуть его идентификатор
-
     Id Add(T object) {
         objects.push_back(move(object));
-        priorities[objects.back()] = 0;
+        Id tmp = --objects.end();
+        priorById[tmp] = 0;
+        idByPrior[0].insert(tmp);
+        if( max_pr == 0 ) {
+            max_id = tmp;
+        }
+        return tmp;
     }
 
     // Добавить все элементы диапазона [range_begin, range_end)
@@ -38,7 +42,11 @@ public:
         copy(make_move_iterator(range_begin), make_move_iterator(range_end),
              back_inserter(objects));
         for( auto it = objects.begin()+before_size; it != objects.end(); ++it) {
-            priorities[it] = 0;
+            priorById[it] = 0;
+            idByPrior[0].insert(it);
+            if( max_pr == 0 ) {
+                max_id = it;
+            }
             *ids_begin = it;
             ids_begin++;
         }
@@ -47,27 +55,54 @@ public:
     // Определить, принадлежит ли идентификатор какому-либо
     // хранящемуся в контейнере объекту
     bool IsValid(Id id) const {
-        return priorities.count(id);
+        return priorById.count(id);
     }
 
     // Получить объект по идентификатору
     const T& Get(Id id) const {
-        priorities.erase(id);
-        return move(*id);
+        return (*id);
     }
 
     // Увеличить приоритет объекта на 1
-    void Promote(Id id);
+    void Promote(Id id) {
+        int old_pr = priorById[id];
+        idByPrior[old_pr].erase(id);
+        idByPrior[++old_pr].insert(id);
+        priorById[id]++;
+        if ( old_pr > max_pr ||
+             ( old_pr == max_pr && id > max_id )) {
+            max_pr = old_pr;
+            max_id = id;
+        }
+    }
 
     // Получить объект с максимальным приоритетом и его приоритет
-    pair<const T&, int> GetMax() const;
+    pair<const T&, int> GetMax() const {
+        return { *max_id, max_pr };
+    }
 
     // Аналогично GetMax, но удаляет элемент из контейнера
-    pair<T, int> PopMax();
+    pair<T, int> PopMax() {
+        pair<T, int> res(move(*max_id), max_pr);
+        auto max_it = --idByPrior[max_pr].end();
+        idByPrior[max_pr].erase(max_it);
+        priorById.erase(max_id);
+        while ( idByPrior[max_pr].size() == 0 && max_pr > 0 ) {
+            max_pr -= 1;
+        }
+        if( idByPrior[max_pr].size() > 0 ) {
+            max_id = *(--(idByPrior[max_pr].end()));
+        }
+
+        return res;
+    }
 
 private:
     deque<T> objects;
-    map<deque<T>::iterator, int> priorities;
+    map<Id, int> priorById;
+    map<int, set<Id>> idByPrior;
+    int max_pr;
+    Id max_id;
 };
 
 class StringNonCopyable : public string {
