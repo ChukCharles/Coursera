@@ -1,59 +1,50 @@
-#include "test_runner.h"
-
 #include <cstdint>
 #include <iterator>
 #include <numeric>
 #include <vector>
 #include <list>
+#include "test_runner.h"
 
 using namespace std;
 
-// Вспомогательная функция, позволяющая «зациклить» список
-template <typename Container, typename ForwardIt>
-ForwardIt LoopIterator(Container& container, ForwardIt pos) {
-  return pos == container.end() ? container.begin() : pos;
-}
-
 template <typename RandomIt>
-void MakeJosephusPermutation(RandomIt first, RandomIt last,
-                             uint32_t step_size) {
-  list<typename RandomIt::value_type> pool;
-  for (auto it = first; it != last; ++it) {
-    pool.push_back(move(*it));
-  }
-  auto cur_pos = pool.begin();
-  while (!pool.empty()) {
-    *(first++) = move(*cur_pos);
-    if (pool.size() == 1) {
-      break;
+void MakeJosephusPermutation(RandomIt first, RandomIt last, uint32_t step_size) {
+    list<typename RandomIt::value_type> pool;
+    RandomIt first_c = first;
+    while (first_c != last) {
+        pool.push_back(move(*first_c++));
     }
-    const auto next_pos = LoopIterator(pool, next(cur_pos));
-    pool.erase(cur_pos);
-    cur_pos = next_pos;
-    for (uint32_t step_index = 1; step_index < step_size; ++step_index) {
-      cur_pos = LoopIterator(pool, next(cur_pos));
+    auto iter = pool.begin();
+    while (pool.size()>1) {
+        *first++ = move(*iter);
+        iter = pool.erase(iter);
+        for (size_t i = 0; i < step_size-1; ++i) {
+            if (iter == pool.end()) iter = pool.begin();
+            iter = next(iter);
+        }
+        if (iter == pool.end()) iter = pool.begin();
     }
-  }
+    *first = move(*pool.begin());
 }
 
 vector<int> MakeTestVector() {
-  vector<int> numbers(10);
-  iota(begin(numbers), end(numbers), 0);
-  return numbers;
+    vector<int> numbers(10);
+    iota(begin(numbers), end(numbers), 0);
+    return numbers;
 }
 
 void TestIntVector() {
-  const vector<int> numbers = MakeTestVector();
-  {
-    vector<int> numbers_copy = numbers;
-    MakeJosephusPermutation(begin(numbers_copy), end(numbers_copy), 1);
-    ASSERT_EQUAL(numbers_copy, numbers);
-  }
-  {
-    vector<int> numbers_copy = numbers;
-    MakeJosephusPermutation(begin(numbers_copy), end(numbers_copy), 3);
-    ASSERT_EQUAL(numbers_copy, vector<int>({0, 3, 6, 9, 4, 8, 5, 2, 7, 1}));
-  }
+    const vector<int> numbers = MakeTestVector();
+    {
+        vector<int> numbers_copy = numbers;
+        MakeJosephusPermutation(begin(numbers_copy), end(numbers_copy), 1);
+        ASSERT_EQUAL(numbers_copy, numbers);
+    }
+    {
+        vector<int> numbers_copy = numbers;
+        MakeJosephusPermutation(begin(numbers_copy), end(numbers_copy), 3);
+        ASSERT_EQUAL(numbers_copy, vector<int>({ 0, 3, 6, 9, 4, 8, 5, 2, 7, 1 }));
+    }
 }
 
 // Это специальный тип, который поможет вам убедиться, что ваша реализация
@@ -63,46 +54,54 @@ void TestIntVector() {
 // в видео «Некопируемые типы»
 
 struct NoncopyableInt {
-  int value;
+    int value;
 
-  NoncopyableInt(const NoncopyableInt&) = delete;
-  NoncopyableInt& operator=(const NoncopyableInt&) = delete;
+    NoncopyableInt(const NoncopyableInt&) = delete;
+    NoncopyableInt& operator=(const NoncopyableInt&) = delete;
 
-  NoncopyableInt(NoncopyableInt&&) = default;
-  NoncopyableInt& operator=(NoncopyableInt&&) = default;
+    NoncopyableInt(NoncopyableInt&&) = default;
+    NoncopyableInt& operator=(NoncopyableInt&&) = default;
 };
 
 bool operator == (const NoncopyableInt& lhs, const NoncopyableInt& rhs) {
-  return lhs.value == rhs.value;
+    return lhs.value == rhs.value;
 }
 
 ostream& operator << (ostream& os, const NoncopyableInt& v) {
-  return os << v.value;
+    return os << v.value;
 }
 
 void TestAvoidsCopying() {
-  vector<NoncopyableInt> numbers;
-  numbers.push_back({1});
-  numbers.push_back({2});
-  numbers.push_back({3});
-  numbers.push_back({4});
-  numbers.push_back({5});
+    vector<NoncopyableInt> numbers;
+    numbers.push_back({ 1 });
+    numbers.push_back({ 2 });
+    numbers.push_back({ 3 });
+    numbers.push_back({ 4 });
+    numbers.push_back({ 5 });
 
-  MakeJosephusPermutation(begin(numbers), end(numbers), 2);
+    MakeJosephusPermutation(begin(numbers), end(numbers), 2);
 
-  vector<NoncopyableInt> expected;
-  expected.push_back({1});
-  expected.push_back({3});
-  expected.push_back({5});
-  expected.push_back({4});
-  expected.push_back({2});
+    vector<NoncopyableInt> expected;
+    expected.push_back({ 1 });
+    expected.push_back({ 3 });
+    expected.push_back({ 5 });
+    expected.push_back({ 4 });
+    expected.push_back({ 2 });
 
-  ASSERT_EQUAL(numbers, expected);
+    ASSERT_EQUAL(numbers, expected);
 }
 
 int main() {
-  TestRunner tr;
-  RUN_TEST(tr, TestIntVector);
-  RUN_TEST(tr, TestAvoidsCopying);
-  return 0;
+    TestRunner tr;
+    RUN_TEST(tr, TestIntVector);
+    RUN_TEST(tr, TestAvoidsCopying);
+
+    //vector<int> numbers(10);
+    //iota(begin(numbers), end(numbers), 0);
+    //MakeJosephusPermutation(numbers.begin(), numbers.end(), 2);
+    //for (auto x : numbers) {
+    //    cout << x << " ";
+    //}
+
+    return 0;
 }
