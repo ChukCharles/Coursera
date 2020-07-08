@@ -1,0 +1,28 @@
+Решение ниже довольно громоздкое и содержит дублирование кода, от которого мы избавляемся с помощью макросов. К сожалению, C++ не очень хорошо подходит для создания множественной диспетчеризации. Есть и другие способы реализовать подобную функциональность, но ни один из них не отличается лаконичностью, красотой и изяществом.
+
+Те из вас, кто знаком с конструкцией dynamic_cast, могли возмутиться от того, что мы запретили её использовать. Дело в том, что с применением dynamic_cast функция Collide будет выглядеть так:
+
+bool Collide(const GameObject& first, const GameObject& second) {
+  if (auto* unit = dynamic_cast<const Unit*>(&first)) {
+    if (auto* unit2 = dynamic_cast<const Unit*>(&second)) {
+      return geo2d::Collide(unit->GetPosition(), unit2->GetPosition());
+    } else if (auto* building = dynamic_cast<const Building*>(&second)) {
+      return geo2d::Collide(unit->GetPosition(), building->GetGeometry());
+    } else if (auto* tower = dynamic_cast<const Tower*>(&second)) {
+      return geo2d::Collide(unit->GetPosition(), tower->GetGeometry());
+    } else if (auto* fence = dynamic_cast<const Fence*>(&second)) {
+      return geo2d::Collide(unit->GetPosition(), fence->GetGeometry());
+    } else {
+      throw std::runtime_error("Failed to cast second to any known game object");
+    }
+  } else if (auto* building = dynamic_cast<const Building*>(&first)) {
+    ...
+  } ...
+}
+
+
+Этот код тоже нельзя назвать простым и коротким. Но его главный недостаток в том, что когда у нас появится новый наследник класса GameObject, очень легко забыть добавить его во все ветви этого развесистого условия. Это может привести к неожиданному возникновению исключения runtime_error после нескольких часов корректной работы программы.
+
+В нашем же решении появление нового наследника потребует добавить в класс GameObject соответствующий метод CollideWith, а дальше уже компилятор будет контролировать, что мы предоставили перегрузки этого метода для всех возможных пар объектов. Да, это муторно и громоздко, но если наша программа скомпилировалась, значит, мы научили её пересекать все объекты друг с другом и мы можем быть уверены, что она не упадёт через несколько часов работы.
+
+Авторское решение задачи «Двойная диспетчеризация
